@@ -10,7 +10,9 @@
 use crate::timeout::*;
 use aws_config::default_provider::credentials::DefaultCredentialsChain;
 use aws_config::meta::region::RegionProviderChain;
+// use aws_sdk_cloudfront::config::Credentials;
 use aws_sdk_s3::config::retry::RetryConfig;
+use aws_sdk_s3::config::Credentials;
 use aws_sdk_s3::Client;
 use futures::future::{Future, TryFutureExt};
 use futures::prelude::*;
@@ -227,11 +229,43 @@ pub async fn testing_sdk_client() -> Client {
         .profile_name("testing")
         .build()
         .await;
-    let region_provider = RegionProviderChain::first_try("EuWest1");
+
+    let region_provider = RegionProviderChain::first_try("us-east-1");
     let sdk_config = aws_config::from_env()
         .region(region_provider)
         .endpoint_url("http://localhost:9000")
         .credentials_provider(credentials_provider)
+        .load()
+        .await;
+
+    let mut s3_config_builder = aws_sdk_s3::config::Builder::from(&sdk_config);
+    s3_config_builder.set_retry_config(Some(retry_config));
+    s3_config_builder.set_force_path_style(Some(true));
+
+    Client::from_conf(s3_config_builder.build())
+}
+
+pub async fn sdk_client(
+    access_key_id: &str,
+    access_key_secret: &str,
+    endpoint_url: &str,
+) -> Client {
+    let retry_config = RetryConfig::standard()
+        .with_max_attempts(3)
+        .with_initial_backoff(Duration::from_secs(10));
+
+    // FIXME: we should pass region but it needs static here, why?
+    let region_provider = RegionProviderChain::first_try("garage");
+    let sdk_config = aws_config::from_env()
+        .region(region_provider)
+        .credentials_provider(Credentials::new(
+            access_key_id,
+            access_key_secret,
+            None,
+            None,
+            "dummy",
+        ))
+        .endpoint_url(endpoint_url)
         .load()
         .await;
 

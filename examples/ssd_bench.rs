@@ -59,7 +59,19 @@ async fn benchmark_s3_upload(
         copy_parallelization,
         ..Default::default()
     };
-    let s3 = testing_sdk_client().await;
+
+    // let _region = std::env::var("AWS_DEFAULT_REGION")
+    //     .unwrap_or_else(|_| panic!("AWS_DEFAULT_REGION not found from environment variables"));
+    let endpoint = std::env::var("AWS_ENDPOINT_URL")
+        .unwrap_or_else(|_| panic!("AWS_ENDPOINT_URL not found from environment variables"));
+    let access_key_id = std::env::var("AWS_ACCESS_KEY_ID")
+        .unwrap_or_else(|_| panic!("AWS_ACCESS_KEY_ID not found from environment variables"));
+    let access_key_secret = std::env::var("AWS_SECRET_ACCESS_KEY")
+        .unwrap_or_else(|_| panic!("AWS_SECRET_ACCESS_KEY not found from environment variables"));
+
+    // http://10.1.0.1:80
+    // http://localhost:3900
+    let s3 = sdk_client(&access_key_id, &access_key_secret, &endpoint).await;
     let algo = S3Algo::with_config(s3, cfg);
 
     upload_perf_log_init(&mut std::io::stdout());
